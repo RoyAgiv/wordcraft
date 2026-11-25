@@ -328,7 +328,11 @@ impl WordApp {
                 // otherwise dropped: a failed write (no permission, disk full, a bad path) left the
                 // Save As page sitting there with nothing to say why, since its own render loop
                 // skips the status bar while Backstage is open. `fail_save_as` reaches both.
-                let result = picked.map(|path| self.run("file.save", json!({"path": path})));
+                // Hosted Save As must retain its explicit copy intent even when the
+                // picker returns the currently opened document's name. Native saves
+                // continue through their existing file.save path.
+                let command = if self.services.host_save.is_some() { "file.saveAs" } else { "file.save" };
+                let result = picked.map(|path| self.run(command, json!({"path": path})));
                 let saved = matches!(&result, Some(Ok(v)) if v.get("saved").and_then(Value::as_bool) == Some(true) || v.get("downloaded").is_some());
                 if saved {
                     self.ui.backstage = false;
