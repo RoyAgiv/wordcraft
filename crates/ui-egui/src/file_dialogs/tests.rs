@@ -711,3 +711,37 @@ fn many_failed_fonts_end_with_a_count() {
     let msg = a.status_msg.as_ref().map(|(m, _)| m.clone()).unwrap_or_default();
     assert_eq!(msg, "Added 0 fonts; 5 couldn't be read: f0.ttf, f1.ttf, f2.ttf and 2 more");
 }
+
+/// A hosted Save As must create a copy even if its chosen filename is unchanged.
+#[test]
+fn hosted_save_as_same_name_preserves_copy_intent() {
+    let (mut a, _) = async_app();
+    let delivered = Rc::new(RefCell::new(Vec::new()));
+    let log = delivered.clone();
+    a.services.download = Some(Box::new(|_, _| Ok(())));
+    a.services.host_save = Some(Box::new(move |name, bytes, new_file| {
+        assert!(!bytes.is_empty());
+        log.borrow_mut().push((name.to_string(), new_file));
+        Ok(())
+    }));
+    a.session.path = Some("original.docx".into());
+    typed(&mut a);
+    let document = a.session.document_id();
+    let result = a.finish_pick(
+        AfterPick::SaveAs { after: AfterSave::Nothing, document },
+        Some("original.docx".into()),
+    ).unwrap();
+    assert_eq!(result["saved"], json!(true));
+    assert_eq!(&*delivered.borrow(), &[("original.docx".to_string(), true)]);
+    a.run("file.save", json!({"path": "original.docx"})).unwrap();
+    assert_eq!(&*delivered.borrow(), &[
+        ("original.docx".to_string(), true),
+        ("original.docx".to_string(), false),
+    ]);
+    let result = a.finish_pick(
+        AfterPick::SaveAs { after: AfterSave::Nothing, document },
+        None,
+    ).unwrap();
+    assert_eq!(result["saved"], json!(false));
+    assert_eq!(delivered.borrow().len(), 2);
+}
