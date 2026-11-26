@@ -63,6 +63,9 @@ pub struct TableStyleParts {
     pub fill: Option<Rgb>,
     /// Cell margins, points: [top, left, bottom, right] (`w:tblCellMar`).
     pub cell_margins: Option<[f32; 4]>,
+    /// Table indent from the leading margin, points. An explicit zero is distinct from omission.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub indent: Option<f32>,
     pub header_fill: Option<Rgb>,
     pub header_chr: CharProps,
     /// Cell borders of the header row (`firstRow` region's `w:tcBorders`): `between` is the
@@ -320,6 +323,7 @@ impl TableStyleParts {
         self.band_chr.overlay(&patch.band_chr);
         self.fill = patch.fill.or(self.fill);
         self.cell_margins = patch.cell_margins.or(self.cell_margins);
+        self.indent = patch.indent.or(self.indent);
         self.header_fill = patch.header_fill.or(self.header_fill);
         self.header_chr.overlay(&patch.header_chr);
         self.band_fill = patch.band_fill.or(self.band_fill);
@@ -802,6 +806,13 @@ impl StyleSheet {
         chain.get(k..).unwrap_or_default().iter().fold((false, false), |(l, f), s| {
             (l || set(s.para.indent_left, s.para.indent_left_chars), f || set(s.para.indent_first, s.para.indent_first_chars))
         })
+    }
+    /// Effective table indent in points: direct formatting, then its style chain, then zero.
+    pub fn table_indent(&self, t: &crate::props::TableProps) -> f32 {
+        t.indent
+            .or_else(|| t.style.as_deref().and_then(|id| self.table_style(id)).and_then(|s| s.parts.indent))
+            .filter(|i| i.is_finite())
+            .unwrap_or(0.0)
     }
     /// Table style `id` with its based-on chain merged, base styles first (`None` when there is no
     /// such table style). Styles of other kinds in the chain are skipped.

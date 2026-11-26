@@ -407,7 +407,7 @@ pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
                                 medium(11.5),
                                 t.on_accent,
                             );
-                            if resp.on_hover_text(tl!("Join the ArtCraft community on Discord")).clicked() {
+                            if resp.on_hover_text(tl!("Open the upstream WordCraft community on Discord")).clicked() {
                                 let _ = app.run("ui.discord", json!({}));
                             }
                             ui.add_space(8.0);
